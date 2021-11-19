@@ -22,6 +22,7 @@
 
 import errno
 import hashlib
+import json
 import logging
 import os
 import pathlib
@@ -51,7 +52,6 @@ from ansiblelint.version import __version__
 
 if TYPE_CHECKING:
     from ansiblelint.runner import LintResult
-
 
 _logger = logging.getLogger(__name__)
 
@@ -119,7 +119,7 @@ def initialize_options(arguments: Optional[List[str]] = None) -> None:
 
 
 def report_outcome(  # noqa: C901
-    result: "LintResult", options: Namespace, mark_as_success: bool = False
+        result: "LintResult", options: Namespace, mark_as_success: bool = False
 ) -> int:
     """Display information about how to skip found rules.
 
@@ -132,11 +132,22 @@ def report_outcome(  # noqa: C901
 
     # counting
     matched_rules = {match.rule.id: match.rule for match in matches_unignored}
+    output = []
     for match in result.matches:
+        match_dict = json.dumps(match, default=lambda o: o.__dict__, indent=4)
+        match_dict = json.loads(match_dict)
         if {match.rule.id, *match.rule.tags}.isdisjoint(options.warn_list):
+            match_dict.update({'level': 'failure'})
+            output.append(match_dict)
             failures += 1
         else:
+            match_dict.update({'level': 'warning'})
+            output.append(match_dict)
             warnings += 1
+
+    # write to file
+    with open('output.json', 'w') as f:
+        json.dump(output, f, indent=2)
 
     # remove unskippable rules from the list
     for rule_id in list(matched_rules.keys()):
@@ -214,7 +225,6 @@ def main(argv: Optional[List[str]] = None) -> int:
     rules = RulesCollection(options.rulesdirs)
 
     if options.listrules:
-
         _rule_format_map: Dict[str, Callable[..., Any]] = {
             'plain': rules_as_str,
             'rich': rules_as_rich,
