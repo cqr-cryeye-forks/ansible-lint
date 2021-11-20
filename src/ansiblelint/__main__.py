@@ -146,8 +146,9 @@ def report_outcome(  # noqa: C901
             warnings += 1
 
     # write to file
-    with open('/wd/output.json', 'w') as f:
-        json.dump(output, f, indent=2)
+    if output:
+        with open('/wd/output.json', 'w') as f:
+            json.dump(output, f, indent=2)
 
     # remove unskippable rules from the list
     for rule_id in list(matched_rules.keys()):
